@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>만다라트 계획표</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0d0d1a;
+            color: #ddd;
+            font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 12px 40px;
+            gap: 14px;
+        }
+
+        header { text-align: center; }
+
+        h1 {
+            font-size: clamp(1.4rem, 4vw, 2rem);
+            font-weight: 800;
+            background: linear-gradient(135deg, #f5d020, #f09010);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.5px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 0.82rem;
+            margin-top: 5px;
+        }
+
+        /* -------- Toolbar -------- */
+        .toolbar {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 7px 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: filter 0.12s, transform 0.1s;
+        }
+        .btn:hover { filter: brightness(1.18); transform: translateY(-1px); }
+        .btn:active { transform: translateY(0); }
+
+        .btn-green  { background: #27ae60; color: #fff; }
+        .btn-blue   { background: #2980b9; color: #fff; }
+        .btn-orange { background: #d68910; color: #fff; }
+        .btn-red    { background: #c0392b; color: #fff; }
+
+        /* -------- Grid -------- */
+        .grid-outer {
+            background: #13132a;
+            border-radius: 14px;
+            padding: 6px;
+            box-shadow: 0 6px 32px rgba(0,0,0,0.65);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 5px;
+            width: min(696px, 90vw);
+            height: min(696px, 90vw);
+        }
+
+        .blk {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 2px;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            padding: 3px;
+            position: relative;
+            overflow: hidden;
+            transition: filter 0.12s;
+        }
+
+        .cell:hover { filter: brightness(1.22); }
+
+        .cell.is-editing {
+            outline: 2px solid rgba(255, 255, 255, 0.85);
+            outline-offset: -2px;
+        }
+
+        .cell-label {
+            font-size: clamp(7px, 1.4vmin, 12px);
+            text-align: center;
+            word-break: break-word;
+            overflow-wrap: break-word;
+            line-height: 1.28;
+            max-height: 100%;
+            overflow: hidden;
+            pointer-events: none;
+            white-space: pre-wrap;
+        }
+
+        textarea.cell-ta {
+            position: absolute;
+            inset: 0;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: inherit;
+            font-family: inherit;
+            font-size: clamp(7px, 1.4vmin, 12px);
+            text-align: center;
+            resize: none;
+            padding: 4px 2px;
+            cursor: text;
+            line-height: 1.28;
+        }
+
+        /* -------- Block & Cell Colors -------- */
+        /* Block 0: Blue (top-left) */
+        .blk-0 .cell         { background: #1a3d62; color: #a8ccee; }
+        .blk-0 .cell.core    { background: #1b6fad; color: #e0f0ff; font-weight: 700; }
+
+        /* Block 1: Emerald (top-center) */
+        .blk-1 .cell         { background: #194b30; color: #9ed8b4; }
+        .blk-1 .cell.core    { background: #187a40; color: #ccffde; font-weight: 700; }
+
+        /* Block 2: Purple (top-right) */
+        .blk-2 .cell         { background: #3a1855; color: #cca8e8; }
+        .blk-2 .cell.core    { background: #7930a8; color: #eeddff; font-weight: 700; }
+
+        /* Block 3: Amber (middle-left) */
+        .blk-3 .cell         { background: #4a2a14; color: #e8c898; }
+        .blk-3 .cell.core    { background: #c06010; color: #fff0cc; font-weight: 700; }
+
+        /* Block 4: Center (neutral dark) */
+        .blk-4 .cell         { background: #1e1e34; color: #b0b0cc; }
+
+        /* Block 5: Teal (middle-right) */
+        .blk-5 .cell         { background: #173838; color: #98d8d8; }
+        .blk-5 .cell.core    { background: #0f8070; color: #ccffff; font-weight: 700; }
+
+        /* Block 6: Crimson (bottom-left) */
+        .blk-6 .cell         { background: #3c1818; color: #e8a8a8; }
+        .blk-6 .cell.core    { background: #b03030; color: #ffdddd; font-weight: 700; }
+
+        /* Block 7: Gold (bottom-center) */
+        .blk-7 .cell         { background: #2e2c14; color: #e8e098; }
+        .blk-7 .cell.core    { background: #9e7e10; color: #ffface; font-weight: 700; }
+
+        /* Block 8: Violet (bottom-right) */
+        .blk-8 .cell         { background: #32183a; color: #d098e0; }
+        .blk-8 .cell.core    { background: #8030a0; color: #f0ccff; font-weight: 700; }
+
+        /* Main Goal (center of center block) */
+        .blk-4 .cell.main-goal {
+            background: linear-gradient(135deg, #c8940a, #f0b830);
+            color: #1a1200;
+            font-weight: 800;
+        }
+
+        /* Core-refs in center block: same highlight color as each block's core */
+        .blk-4 .cell.cref-0 { background: #1b6fad; color: #e0f0ff; font-weight: 700; }
+        .blk-4 .cell.cref-1 { background: #187a40; color: #ccffde; font-weight: 700; }
+        .blk-4 .cell.cref-2 { background: #7930a8; color: #eeddff; font-weight: 700; }
+        .blk-4 .cell.cref-3 { background: #c06010; color: #fff0cc; font-weight: 700; }
+        .blk-4 .cell.cref-5 { background: #0f8070; color: #ccffff; font-weight: 700; }
+        .blk-4 .cell.cref-6 { background: #b03030; color: #ffdddd; font-weight: 700; }
+        .blk-4 .cell.cref-7 { background: #9e7e10; color: #ffface; font-weight: 700; }
+        .blk-4 .cell.cref-8 { background: #8030a0; color: #f0ccff; font-weight: 700; }
+
+        /* -------- Toast -------- */
+        .toast-wrap { height: 34px; display: flex; align-items: center; }
+
+        .toast {
+            padding: 5px 18px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            animation: toastFade 2.6s ease forwards;
+        }
+        .toast-ok   { background: #27ae60; color: #fff; }
+        .toast-info { background: #2980b9; color: #fff; }
+
+        @keyframes toastFade {
+            0%   { opacity: 0; transform: scale(0.85); }
+            12%  { opacity: 1; transform: scale(1); }
+            75%  { opacity: 1; }
+            100% { opacity: 0; transform: scale(0.9); }
+        }
+
+        /* -------- Legend -------- */
+        .legend {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 11px;
+            color: #888;
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        .hint {
+            font-size: 0.78rem;
+            color: #505060;
+            text-align: center;
+            max-width: 520px;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 460px) {
+            .btn { padding: 6px 11px; font-size: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🎯 만다라트 계획표</h1>
+        <p class="subtitle">9×9 목표 구조화 도구 — Mandalart Planner</p>
+    </header>
+
+    <div class="toolbar">
+        <button class="btn btn-green"  onclick="saveData()">💾 저장</button>
+        <button class="btn btn-blue"   onclick="loadData()">📂 불러오기</button>
+        <button class="btn btn-orange" onclick="exportImg()">📸 이미지 저장</button>
+        <button class="btn btn-red"    onclick="clearAll()">🗑️ 초기화</button>
+    </div>
+
+    <div class="grid-outer">
+        <div class="grid" id="grid"></div>
+    </div>
+
+    <div class="toast-wrap" id="toastWrap"></div>
+
+    <div class="legend" id="legend"></div>
+
+    <p class="hint">
+        ✦ 중앙 <strong>금색</strong> 셀에 핵심 목표 입력 &nbsp;→&nbsp;
+        주변 8개 <strong>색상</strong> 셀에 세부 목표 입력<br>
+        세부 목표는 해당 블록 중심에 자동 연동됩니다. &nbsp;<kbd>Enter</kbd> 또는 외부 클릭으로 저장.
+    </p>
+
+    <script>
+    (() => {
+        'use strict';
+
+        // ── Data ─────────────────────────────────────────────────────────────
+        let data = Array.from({ length: 9 }, () => Array(9).fill(''));
+
+        // Bidirectional linked cell pairs:
+        // center-block cell ↔ outer-block center cell
+        const LINK_PAIRS = [
+            [[3,3],[1,1]],  // block4[0,0] ↔ block0 center
+            [[3,4],[1,4]],  // block4[0,1] ↔ block1 center
+            [[3,5],[1,7]],  // block4[0,2] ↔ block2 center
+            [[4,3],[4,1]],  // block4[1,0] ↔ block3 center
+            [[4,5],[4,7]],  // block4[1,2] ↔ block5 center
+            [[5,3],[7,1]],  // block4[2,0] ↔ block6 center
+            [[5,4],[7,4]],  // block4[2,1] ↔ block7 center
+            [[5,5],[7,7]],  // block4[2,2] ↔ block8 center
+        ];
+
+        const linkMap = new Map();
+        for (const [a, b] of LINK_PAIRS) {
+            linkMap.set(`${a[0]},${a[1]}`, b);
+            linkMap.set(`${b[0]},${b[1]}`, a);
+        }
+
+        const blockOfOuterCenter = new Map([
+            ['1,1',0], ['1,4',1], ['1,7',2],
+            ['4,1',3], ['4,7',5],
+            ['7,1',6], ['7,4',7], ['7,7',8],
+        ]);
+
+        const BLOCK_NAMES = ['블루','에메랄드','퍼플','앰버','(중앙)','틸','크림슨','골드','바이올렛'];
+        const BLOCK_COLORS = [
+            '#1b6fad','#187a40','#7930a8','#c06010',
+            '#c8940a',
+            '#0f8070','#b03030','#9e7e10','#8030a0'
+        ];
+
+        let editingCell = null;
+
+        // ── Build Grid ────────────────────────────────────────────────────────
+        function buildGrid() {
+            const grid = document.getElementById('grid');
+            grid.innerHTML = '';
+
+            for (let bRow = 0; bRow < 3; bRow++) {
+                for (let bCol = 0; bCol < 3; bCol++) {
+                    const bIdx = bRow * 3 + bCol;
+                    const blk = document.createElement('div');
+                    blk.className = `blk blk-${bIdx}`;
+
+                    for (let cRow = 0; cRow < 3; cRow++) {
+                        for (let cCol = 0; cCol < 3; cCol++) {
+                            const r = bRow * 3 + cRow;
+                            const c = bCol * 3 + cCol;
+
+                            const cell = document.createElement('div');
+                            cell.className = 'cell';
+                            cell.dataset.r = r;
+                            cell.dataset.c = c;
+
+                            if (bIdx === 4 && cRow === 1 && cCol === 1) {
+                                cell.classList.add('main-goal');
+                            } else if (bIdx === 4) {
+                                const linked = linkMap.get(`${r},${c}`);
+                                if (linked) {
+                                    const lb = blockOfOuterCenter.get(`${linked[0]},${linked[1]}`);
+                                    if (lb !== undefined) cell.classList.add(`cref-${lb}`);
+                                }
+                            } else if (cRow === 1 && cCol === 1) {
+                                cell.classList.add('core');
+                            }
+
+                            const label = document.createElement('span');
+                            label.className = 'cell-label';
+                            label.textContent = data[r][c];
+                            cell.appendChild(label);
+
+                            cell.addEventListener('click', onCellClick);
+                            blk.appendChild(cell);
+                        }
+                    }
+                    grid.appendChild(blk);
+                }
+            }
+        }
+
+        // ── Edit ──────────────────────────────────────────────────────────────
+        function onCellClick(e) {
+            const cell = e.currentTarget;
+            if (editingCell === cell) return;
+            commitEdit();
+            startEdit(cell);
+        }
+
+        function startEdit(cell) {
+            editingCell = cell;
+            cell.classList.add('is-editing');
+
+            const r = +cell.dataset.r;
+            const c = +cell.dataset.c;
+            const label = cell.querySelector('.cell-label');
+            label.style.visibility = 'hidden';
+
+            const ta = document.createElement('textarea');
+            ta.className = 'cell-ta';
+            ta.value = data[r][c];
+            cell.appendChild(ta);
+            ta.focus();
+            ta.select();
+
+            ta.addEventListener('input', () => {
+                data[r][c] = ta.value;
+                propagate(r, c, ta.value);
+            });
+
+            ta.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitEdit(); }
+                if (e.key === 'Escape') commitEdit();
+            });
+
+            ta.addEventListener('blur', () => {
+                const captured = cell;
+                setTimeout(() => {
+                    if (editingCell === captured) commitEdit();
+                }, 120);
+            });
+        }
+
+        function commitEdit() {
+            if (!editingCell) return;
+            const cell = editingCell;
+            editingCell = null;
+
+            const r = +cell.dataset.r;
+            const c = +cell.dataset.c;
+            const ta = cell.querySelector('textarea');
+
+            if (ta) {
+                data[r][c] = ta.value;
+                propagate(r, c, ta.value);
+                ta.remove();
+            }
+
+            cell.classList.remove('is-editing');
+            const label = cell.querySelector('.cell-label');
+            if (label) {
+                label.style.visibility = '';
+                label.textContent = data[r][c];
+            }
+        }
+
+        function propagate(r, c, value) {
+            const linked = linkMap.get(`${r},${c}`);
+            if (!linked) return;
+            const [lr, lc] = linked;
+            data[lr][lc] = value;
+            refreshLabel(lr, lc);
+        }
+
+        function refreshLabel(r, c) {
+            const cell = document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+            if (!cell || cell === editingCell) return;
+            const label = cell.querySelector('.cell-label');
+            if (label) label.textContent = data[r][c];
+        }
+
+        // ── Persistence ───────────────────────────────────────────────────────
+        function saveData() {
+            commitEdit();
+            localStorage.setItem('mandalart_v2', JSON.stringify(data));
+            toast('저장되었습니다! 💾', 'ok');
+        }
+
+        function loadData() {
+            const raw = localStorage.getItem('mandalart_v2');
+            if (!raw) { toast('저장된 데이터가 없습니다.', 'info'); return; }
+            try {
+                data = JSON.parse(raw);
+                buildGrid();
+                toast('불러왔습니다! 📂', 'info');
+            } catch {
+                toast('데이터 불러오기 실패', 'info');
+            }
+        }
+
+        function clearAll() {
+            if (!confirm('모든 내용을 초기화하시겠습니까?')) return;
+            data = Array.from({ length: 9 }, () => Array(9).fill(''));
+            buildGrid();
+            toast('초기화되었습니다.', 'info');
+        }
+
+        async function exportImg() {
+            commitEdit();
+            const el = document.querySelector('.grid-outer');
+            try {
+                const canvas = await html2canvas(el, { backgroundColor: '#13132a', scale: 2 });
+                const a = document.createElement('a');
+                a.download = `mandalart_${new Date().toISOString().slice(0,10)}.png`;
+                a.href = canvas.toDataURL('image/png');
+                a.click();
+                toast('이미지 저장 완료! 📸', 'ok');
+            } catch {
+                toast('이미지 저장 실패. 화면 캡처를 이용하세요.', 'info');
+            }
+        }
+
+        // ── Toast ─────────────────────────────────────────────────────────────
+        function toast(msg, type) {
+            const wrap = document.getElementById('toastWrap');
+            wrap.innerHTML = '';
+            const el = document.createElement('div');
+            el.className = `toast toast-${type}`;
+            el.textContent = msg;
+            wrap.appendChild(el);
+            el.addEventListener('animationend', () => el.remove(), { once: true });
+        }
+
+        // ── Legend ────────────────────────────────────────────────────────────
+        function buildLegend() {
+            const wrap = document.getElementById('legend');
+            for (let i = 0; i < 9; i++) {
+                if (i === 4) continue;
+                const item = document.createElement('div');
+                item.className = 'legend-item';
+                const dot = document.createElement('div');
+                dot.className = 'legend-dot';
+                dot.style.background = BLOCK_COLORS[i];
+                item.appendChild(dot);
+                item.appendChild(document.createTextNode(BLOCK_NAMES[i]));
+                wrap.appendChild(item);
+            }
+        }
+
+        // ── Global click to close ─────────────────────────────────────────────
+        document.addEventListener('click', (e) => {
+            if (editingCell && !editingCell.contains(e.target)) commitEdit();
+        });
+
+        // ── Keyboard shortcuts ────────────────────────────────────────────────
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                saveData();
+            }
+        });
+
+        // ── Auto-load & init ──────────────────────────────────────────────────
+        const saved = localStorage.getItem('mandalart_v2');
+        if (saved) {
+            try { data = JSON.parse(saved); } catch { /* ignore */ }
+        }
+
+        buildGrid();
+        buildLegend();
+
+        // Expose to HTML onclick attributes
+        window.saveData = saveData;
+        window.loadData = loadData;
+        window.clearAll = clearAll;
+        window.exportImg = exportImg;
+    })();
+    </script>
+</body>
+</html>
